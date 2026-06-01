@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // 1. التحقق من الـ Webhook (Verification Request)
+    // 1. التحقق من الـ Webhook (GET Request)
     if (req.method === 'GET') {
         const mode = req.query['hub.mode'];
         const token = req.query['hub.verify_token'];
@@ -18,76 +18,89 @@ module.exports = async (req, res) => {
         return res.status(400).send('Missing parameters');
     }
 
-    // 2. استقبال الرسائل ومعالجتها (POST Request)
+    // 2. استقبال الأحداث والاختبارات (POST Request)
     if (req.method === 'POST') {
         const body = req.body;
 
-        // التأكد من أن الحدث قادم من صفحة إنستغرام
-        if (body.object === 'instagram') {
-            
-            // قراءة الأحداث القادمة
+        // طباعة الجسم القادم فوراً في الـ Logs لرؤية أي اختبار مهما كان شكله
+        console.log('🔔 Incoming Webhook Event Data:', JSON.stringify(body, null, 2));
+
+        // أ) حالة الاختبار المباشر من لوحة تحكم فيسبوك (الذي أرسلته أنت للتو)
+        if (body.sample && body.sample.value) {
+            const sampleData = body.sample.value;
+            if (sampleData.message && sampleData.message.text) {
+                const senderId = sampleData.sender.id;
+                const userMessage = sampleData.message.text;
+                
+                console.log(`[TEST EVENT] Message from ${senderId}: ${userMessage}`);
+                await handleInstagramMessage(senderId, `تم استلام فحصك الاختباري بنجاح! رسالتك كانت: ${userMessage}`);
+                return res.status(200).send('TEST_EVENT_RECEIVED');
+            }
+        }
+
+        // ب) حالة الرسائل الحقيقية القادمة من تطبيق إنستغرام
+        if (body.object === 'instagram' && body.entry) {
             for (const entry of body.entry) {
-                // تفرع الرسائل (messaging)
                 if (entry.messaging) {
                     for (const messagingEvent of entry.messaging) {
-                        const senderId = messagingEvent.sender.id; // معرف المستخدم المرسل
+                        const senderId = messagingEvent.sender.id;
 
-                        // التأكد من وجود نص في الرسالة وتجنب رسائل البوت لنفسه
                         if (messagingEvent.message && messagingEvent.message.text) {
+                            // تجنب الرد على الأصداء (الرسائل المرسلة من البوت نفسه)
+                            if (messagingEvent.message.is_echo) continue;
+
                             const userMessage = messagingEvent.message.text;
+                            console.log(`[LIVE EVENT] Message from ${senderId}: ${userMessage}`);
                             
-                            // تجنب الرد التلقائي على الرسائل المرسلة من الصفحة نفسها (Echoes)
-                            if (messagingEvent.message.is_echo) {
-                                continue;
-                            }
-
-                            console.log(`Received message from ${senderId}: ${userMessage}`);
-
-                            // معالجة الرسالة وإرسالها إلى OpenRouter ثم إعادة الرد
+                            // معالجة الرسالة وإرسالها لـ OpenRouter
                             await handleInstagramMessage(senderId, userMessage);
                         }
                     }
                 }
             }
             return res.status(200).send('EVENT_RECEIVED');
-        } else {
-            return res.status(404).send('Not an instagram event');
         }
+
+        // إذا وصل طلب غريب لم نطابقه
+        return res.status(200).send('Event received but not matched');
     }
 
-    // أي نوع طلب آخر غير مدعوم
     return res.status(405).send('Method Not Allowed');
 };
 
-// دالة التعامل مع OpenRouter وإرسال الرد لإنستغرام
+// دالة إرسال الردود
 async function handleInstagramMessage(senderId, userMessage) {
     try {
-        // أ) إرسال الرسالة إلى OpenRouter للحصول على رد ذكي
-        // يمكنك تغيير الموديل هنا (مثلاً لـ meta-llama/llama-3-70b-instruct أو gpt-3.5-turbo)
-        const openRouterResponse = await axios.post(
-            'https://openrouter.ai/api/v1/chat/completions',
-            {
-                model: 'nvidia/nemotron-3-super-120b-a12b:free', 
-                messages: [
-                    { role: 'system', content: 'أنت مساعد ذكي مخصص لخدمة عملاء منصة Masnud.iq. أجب باختصار وذكاء وبلهجة ودية تناسب العراقيين.' },
-                    { role: 'user', content: userMessage }
-                ]
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                    'Content-Type': 'application/json',
-                    'HTTP-Referer': 'https://masnud.iq', // اختياري لـ OpenRouter ترتيب الترتيب
-                    'X-Title': 'Masnud Automation'
+        let botReply = "";
+
+        // إذا كانت الرسالة فحصاً اختبارياً، نرد فوراً بدون استهلاك رصيد OpenRouter
+        if (userMessage.includes("تم استلام فحصك الاختباري")) {
+            botReply = userMessage;
+        } else {
+            // استدعاء OpenRouter للرسائل الحقيقية
+            const openRouterResponse = await axios.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                {
+                    model: 'nvidia/nemotron-3-super-120b-a12b:free', 
+                    messages: [
+                        { role: 'system', content: 'أنت مساعد ذكي مخصص لخدمة عملاء منصة Masnud.iq. أجب باختصار وبلهجة عراقية ودية.' },
+                        { role: 'user', content: userMessage }
+                    ]
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'X-Title': 'Masnud Automation'
+                    }
                 }
-            }
-        );
+            );
+            botReply = openRouterResponse.data.choices[0].message.content;
+        }
 
-        const botReply = openRouterResponse.data.choices[0].message.content;
-
-        // ب) إرسال الرد الناتج إلى إنستغرام Graph API
+        // إرسال الرد النهائي إلى إنستغرام Graph API
         await axios.post(
-            `https://graph.facebook.com/v19.0/me/messages`,
+            `https://graph.facebook.com/v25.0/me/messages`, // تم تحديث الإصدار لـ v25.0 بناءً على فحصك
             {
                 recipient: { id: senderId },
                 message: { text: botReply }
@@ -97,9 +110,9 @@ async function handleInstagramMessage(senderId, userMessage) {
             }
         );
 
-        console.log(`Replied to ${senderId}: ${botReply}`);
+        console.log(`✅ Replied successfully to ${senderId}`);
 
     } catch (error) {
-        console.error('Error in handling message:', error.response ? error.response.data : error.message);
+        console.error('❌ Error in handling message:', error.response ? error.response.data : error.message);
     }
 }
