@@ -1,7 +1,6 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // 1. التحقق من الـ Webhook (GET Request)
     if (req.method === 'GET') {
         const mode = req.query['hub.mode'];
         const token = req.query['hub.verify_token'];
@@ -18,41 +17,41 @@ module.exports = async (req, res) => {
         return res.status(400).send('Missing parameters');
     }
 
-    // 2. استقبال الأحداث والاختبارات (POST Request)
     if (req.method === 'POST') {
         const body = req.body;
 
-        // طباعة الجسم القادم فوراً في الـ Logs لرؤية أي اختبار مهما كان شكله
         console.log('🔔 Incoming Webhook Event Data:', JSON.stringify(body, null, 2));
 
-        // أ) حالة الاختبار المباشر من لوحة تحكم فيسبوك (الذي أرسلته أنت للتو)
-        if (body.sample && body.sample.value) {
-            const sampleData = body.sample.value;
-            if (sampleData.message && sampleData.message.text) {
-                const senderId = sampleData.sender.id;
-                const userMessage = sampleData.message.text;
-                
-                console.log(`[TEST EVENT] Message from ${senderId}: ${userMessage}`);
-                await handleInstagramMessage(senderId, `تم استلام فحصك الاختباري بنجاح! رسالتك كانت: ${userMessage}`);
-                return res.status(200).send('TEST_EVENT_RECEIVED');
-            }
-        }
-
-        // ب) حالة الرسائل الحقيقية القادمة من تطبيق إنستغرام
+        // معالجة بيانات إنستغرام
         if (body.object === 'instagram' && body.entry) {
             for (const entry of body.entry) {
+                
+                // 1. معالجة الأحداث القادمة عبر الـ changes (مثل طلب الاختبار الحالي)
+                if (entry.changes) {
+                    for (const change of entry.changes) {
+                        if (change.field === 'messages' && change.value) {
+                            const changeValue = change.value;
+                            if (changeValue.message && changeValue.message.text) {
+                                const senderId = changeValue.sender.id;
+                                const userMessage = changeValue.message.text;
+
+                                console.log(`[CHANGE EVENT] Message from ${senderId}: ${userMessage}`);
+                                await handleInstagramMessage(senderId, userMessage);
+                            }
+                        }
+                    }
+                }
+
+                // 2. معالجة الأحداث القادمة عبر الـ messaging الحقيقية
                 if (entry.messaging) {
                     for (const messagingEvent of entry.messaging) {
                         const senderId = messagingEvent.sender.id;
 
                         if (messagingEvent.message && messagingEvent.message.text) {
-                            // تجنب الرد على الأصداء (الرسائل المرسلة من البوت نفسه)
                             if (messagingEvent.message.is_echo) continue;
 
                             const userMessage = messagingEvent.message.text;
-                            console.log(`[LIVE EVENT] Message from ${senderId}: ${userMessage}`);
-                            
-                            // معالجة الرسالة وإرسالها لـ OpenRouter
+                            console.log(`[MESSAGING EVENT] Message from ${senderId}: ${userMessage}`);
                             await handleInstagramMessage(senderId, userMessage);
                         }
                     }
@@ -61,21 +60,20 @@ module.exports = async (req, res) => {
             return res.status(200).send('EVENT_RECEIVED');
         }
 
-        // إذا وصل طلب غريب لم نطابقه
-        return res.status(200).send('Event received but not matched');
+        return res.status(200).send('Event received but not processed');
     }
 
     return res.status(405).send('Method Not Allowed');
 };
 
-// دالة إرسال الردود
 async function handleInstagramMessage(senderId, userMessage) {
     try {
         let botReply = "";
 
-        // إذا كانت الرسالة فحصاً اختبارياً، نرد فوراً بدون استهلاك رصيد OpenRouter
-        if (userMessage.includes("تم استلام فحصك الاختباري")) {
-            botReply = userMessage;
+        // إذا كانت الرسالة عبارة عن نص الاختبار الوهمي من فيسبوك
+        if (userMessage === "random_text") {
+            botReply = "أهلاً بك! تم فحص نظام الاستجابة التلقائية لمختبر Masnud.iq بنجاح، السيرفر يعمل بكفاءة ومستعد للذكاء الاصطناعي.";
+            console.log("🛠️ Test message detected, sending standard test response.");
         } else {
             // استدعاء OpenRouter للرسائل الحقيقية
             const openRouterResponse = await axios.post(
@@ -100,7 +98,7 @@ async function handleInstagramMessage(senderId, userMessage) {
 
         // إرسال الرد النهائي إلى إنستغرام Graph API
         await axios.post(
-            `https://graph.facebook.com/v25.0/me/messages`, // تم تحديث الإصدار لـ v25.0 بناءً على فحصك
+            `https://graph.facebook.com/v25.0/me/messages`,
             {
                 recipient: { id: senderId },
                 message: { text: botReply }
@@ -110,9 +108,9 @@ async function handleInstagramMessage(senderId, userMessage) {
             }
         );
 
-        console.log(`✅ Replied successfully to ${senderId}`);
+        console.log(`✅ Sent reply to ${senderId}: ${botReply}`);
 
     } catch (error) {
-        console.error('❌ Error in handling message:', error.response ? error.response.data : error.message);
+        console.error('❌ Error sending message:', error.response ? error.response.data : error.message);
     }
 }
