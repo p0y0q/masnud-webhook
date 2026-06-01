@@ -22,11 +22,13 @@ module.exports = async (req, res) => {
 
         console.log('🔔 Incoming Webhook Event Data:', JSON.stringify(body, null, 2));
 
-        // معالجة بيانات إنستغرام
         if (body.object === 'instagram' && body.entry) {
             for (const entry of body.entry) {
                 
-                // 1. معالجة الأحداث القادمة عبر الـ changes (مثل طلب الاختبار الحالي)
+                // الحصول على معرف حساب الانستغرام الفعلي القادم من الحدث تلقائياً وتجنب الـ 'me'
+                const instagramBusinessAccountId = entry.id || 'me';
+
+                // 1. معالجة الأحداث القادمة عبر الـ changes (الاختبارات)
                 if (entry.changes) {
                     for (const change of entry.changes) {
                         if (change.field === 'messages' && change.value) {
@@ -36,13 +38,13 @@ module.exports = async (req, res) => {
                                 const userMessage = changeValue.message.text;
 
                                 console.log(`[CHANGE EVENT] Message from ${senderId}: ${userMessage}`);
-                                await handleInstagramMessage(senderId, userMessage);
+                                await handleInstagramMessage(instagramBusinessAccountId, senderId, userMessage);
                             }
                         }
                     }
                 }
 
-                // 2. معالجة الأحداث القادمة عبر الـ messaging الحقيقية
+                // 2. معالجة الأحداث القادمة عبر الـ messaging (الرسائل الحقيقية)
                 if (entry.messaging) {
                     for (const messagingEvent of entry.messaging) {
                         const senderId = messagingEvent.sender.id;
@@ -52,7 +54,7 @@ module.exports = async (req, res) => {
 
                             const userMessage = messagingEvent.message.text;
                             console.log(`[MESSAGING EVENT] Message from ${senderId}: ${userMessage}`);
-                            await handleInstagramMessage(senderId, userMessage);
+                            await handleInstagramMessage(instagramBusinessAccountId, senderId, userMessage);
                         }
                     }
                 }
@@ -66,16 +68,14 @@ module.exports = async (req, res) => {
     return res.status(405).send('Method Not Allowed');
 };
 
-async function handleInstagramMessage(senderId, userMessage) {
+async function handleInstagramMessage(instagramBusinessAccountId, senderId, userMessage) {
     try {
         let botReply = "";
 
-        // إذا كانت الرسالة عبارة عن نص الاختبار الوهمي من فيسبوك
         if (userMessage === "random_text") {
             botReply = "أهلاً بك! تم فحص نظام الاستجابة التلقائية لمختبر Masnud.iq بنجاح، السيرفر يعمل بكفاءة ومستعد للذكاء الاصطناعي.";
             console.log("🛠️ Test message detected, sending standard test response.");
         } else {
-            // استدعاء OpenRouter للرسائل الحقيقية
             const openRouterResponse = await axios.post(
                 'https://openrouter.ai/api/v1/chat/completions',
                 {
@@ -96,9 +96,9 @@ async function handleInstagramMessage(senderId, userMessage) {
             botReply = openRouterResponse.data.choices[0].message.content;
         }
 
-        // إرسال الرد النهائي إلى إنستغرام Graph API
+        // استبدال 'me' بالمعرف الديناميكي القادم من فيسبوك مباشرة لإصلاح خطأ Code 100
         await axios.post(
-            `https://graph.facebook.com/v25.0/me/messages`,
+            `https://graph.facebook.com/v25.0/${instagramBusinessAccountId}/messages`,
             {
                 recipient: { id: senderId },
                 message: { text: botReply }
