@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - MasnudIQ</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #111111;
+            --light-text: #555555;
+            --border-color: #eeeeee;
+            --accent-color: #0070f3;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .policy-container {
+            max-width: 750px;
+            margin: 0 auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 25px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 10px;
+        }
+
+        .last-updated {
+            color: var(--light-text);
+            font-size: 0.9rem;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            color: #000;
+        }
+
+        p {
+            font-size: 1rem;
+            color: var(--light-text);
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+
+        ul {
+            color: var(--light-text);
+            padding-left: 20px;
+            margin-bottom: 25px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .footer-note {
+            margin-top: 50px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            font-size: 0.85rem;
+            color: #888;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="policy-container">
+        <a href="index.html" class="back-link">← Back to Main Page</a>
+        
+        <h1>Privacy Policy</h1>
+        <div class="last-updated">Last Updated: June 01, 2026</div>
+
+        <p>This Privacy Policy describes how <strong>MasnudIQ</strong> ("we", "our", or "the App") handles data received through the Instagram Graph API and Meta Webhook services. We are committed to ensuring that your privacy and business messaging data are fully protected.</p>
+
+        <h2>1. Data Processing and No-Storage Policy</h2>
+        <p>Our application operates strictly as a real-time message automation router. When a user sends a message to our integrated Instagram business account, the message is processed dynamically to trigger automated AI customer service responses via secure API endpoints (such as OpenRouter).</p>
+        <ul>
+            <li><strong>No Database Storage:</strong> We do not store, log, or maintain any personal profiles, chat histories, or user identifiers on our servers.</li>
+            <li><strong>Ephemeral Processing:</strong> All event data received via Meta Webhooks is processed instantly in memory and discarded immediately after the execution of the response.</li>
+        </ul>
+
+        <h2>2. Permissions Used</h2>
+        <p>To provide automated conversational support, our application requests access to the following Meta Graph API permissions:</p>
+        <ul>
+            <li><code>instagram_manage_messages</code>: To read and reply to direct messages on behalf of the connected business page.</li>
+            <li><code>pages_manage_metadata</code>: To manage webhook subscriptions and handle event deliveries.</li>
+        </ul>
+
+        <h2>3. Data Deletion and Opt-Out Instructions</h2>
+        <p>Because we adhere to a strict no-storage policy, there is no persistent user data or user messaging history retained on our infrastructure to delete. However, if you are a business administrator and wish to completely remove our app's access to your Instagram account, you can do so instantly by:</p>
+        <ul>
+            <li>Navigating to your Facebook Business/Page Settings.</li>
+            <li>Selecting "Advanced Messaging" or "Business Integrations".</li>
+            <li>Locating <strong>MasnudIQ</strong> and clicking <strong>Remove</strong>.</li>
+        </ul>
+
+        <h2>4. Changes to This Policy</h2>
+        <p>We may update our Privacy Policy from time to time to reflect functional adjustments. Any updates will be published directly on this page with a revised "Last Updated" date.</p>
+
+        <div class="footer-note">
+            © 2026 MasnudIQ. All rights reserved. Built for secure communication automation.
+        </div>
+    </div>
+
+</body>
+</html>
