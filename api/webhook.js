@@ -79,7 +79,7 @@ async function handleInstagramMessage(instagramBusinessAccountId, senderId, user
             const openRouterResponse = await axios.post(
                 'https://openrouter.ai/api/v1/chat/completions',
                 {
-                    model: 'nvidia/nemotron-3-super-120b-a12b:free', 
+                    model: 'nex-agi/nex-n2-pro:free', 
                     messages: [
                         { role: 'system', content: 'أنت مساعد ذكي مخصص لخدمة عملاء منصة Masnud.iq. أجب باختصار وبلهجة عراقية ودية.' },
                         { role: 'user', content: userMessage }
